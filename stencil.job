@@ -9,6 +9,8 @@
 #SBATCH --time 00:15:00
 #SBATCH --output stencil.out
 #SBATCH --exclusive
+# Use Intel MPI (make sure you compile with the same module and 'mpiicc')
+module load languages/intel/2018-u3
 
 # Print some information about the job
 echo "Running on host $(hostname)"

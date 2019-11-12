@@ -1,5 +1,5 @@
 
 stencil: stencil.c
-	icc -std=c99 -fast -march=native -Wall $^ -o $@
+	mpiicc -std=c99 -g -Ofast -march=native -Wall $^ -o $@
 
 
