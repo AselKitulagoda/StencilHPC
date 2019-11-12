@@ -99,9 +99,8 @@ int main(int argc, char* argv[])
   printf("height: %d\n",height);
   int height_new = 256;
 
-  // printf("local n rows %d",local_nrows);
-  // printf("local n cols %d",local_ncols);
-  //fill in current grid
+
+  //Split grid between workers
   for (int i=0;i<=local_ncols;i++){
     for (int j=0;j<=local_nrows;j++){
       current[i][j+1]=(float)image[(start_point+i+1)+(start_point+j+1)*height_new];
@@ -113,20 +112,59 @@ int main(int argc, char* argv[])
 
   }
 
-  
-  for (int i = 1;i<local_ncols+1;i++){
-    for (int j=0;j<local_nrows;j++){
-      // printf("%f",current[i][j]);
+  //adding the first rows to send buffer
+    for (int ii=0;ii<local_nrows;ii++){
+      sendbuf[ii] = current[ii][1];
     }
-    // printf("\n");
+    //sending first row to left and receiving from right
+    MPI_Sendrecv(sendbuf,local_nrows,MPI_FLOAT,left,tag,recvbuf,local_nrows,MPI_FLOAT,right,tag,MPI_COMM_WORLD,&status);
+    for (int ii=0;ii<local_nrows;ii++){
+      current[ii][local_ncols+1] = recvbuf[ii];
+    }
+
+  //addding last row to send buffer
+  for (int jj=0;jj<local_nrows;jj++){
+    sendbuf[jj] = current[jj][local_nrows];
   }
+  //Send to the right and receive from left
+  MPI_Sendrecv(sendbuf,local_nrows,MPI_FLOAT,right,tag,recvbuf,local_nrows,MPI_FLOAT,left,tag,MPI_COMM_WORLD,&status);
+  for (int ii=0;ii<local_nrows;ii++){
+    current[ii][0] = recvbuf[ii];
+  }
+
+  //copy old solution to the u grid
+  for (int ii=0;ii<local_ncols+2;ii++){
+    for (int jj=0;jj<local_nrows;jj++){
+      prev[jj][ii] = current[jj][ii];
+      // printf("%f ", current[jj][ii]);
+    }
+  // printf("for rank:%d \n",rank);
+  }
+
+  int start_col_stencil;
+  int end_col_stencil;
+
+  if (rank==0){
+    start_col_stencil = 2;
+    end_col_stencil = local_ncols;
+  }
+  else if (rank == size-1){
+    start_col_stencil = 1;
+    end_col_stencil = local_ncols-1;
+  }
+  else{
+    start_col = 1;
+    end_col = local_ncols;
+  }
+
+
   
   
 
   // Call the stencil kernel
   double tic = wtime();
   for (int t = 0; t < niters; ++t) {
-    stencil(nx, ny, width, height, image, tmp_image);
+    stencil(start_col_stencil, end_col_stencil, width, height, image, tmp_image);
     stencil(nx, ny, width, height, tmp_image, image);
   }
   double toc = wtime();
