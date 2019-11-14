@@ -9,8 +9,8 @@
 #define NCOLS 1024
 #define MASTER 0
 
-void stencil(const int nx, const int ny, const int width, const int height,
-             float* image, float* tmp_image);
+void stencil(const int nx, const int ny,int start_col,int end_col, const int width, const int height,
+             float **current, float **previous,int rank);
 void init_image(const int nx, const int ny, const int width, const int height,
                 float* image, float* tmp_image);
 void output_image(const char* file_name, const int nx, const int ny,
@@ -44,14 +44,14 @@ int main(int argc, char* argv[])
  left = (rank == MASTER) ? (rank+size-1) : (rank-1);
  right = (rank+1)%size;
 
- local_nrows = NROWS;
+ local_nrows = 1024;
  local_ncols = 256;
 
-  prev = (float**)malloc(sizeof(float*) * local_nrows);
+  prev = (float**)malloc(sizeof(float*) * (local_nrows));
   for(int ii=0;ii<local_nrows;ii++) {
     prev[ii] = (float*)malloc(sizeof(float) * (local_ncols + 2));
   }
-  current = (float**)malloc(sizeof(float*) * local_nrows);
+  current = (float**)malloc(sizeof(float*) * (local_nrows));
   for(int ii=0;ii<local_nrows;ii++) {
     current[ii] = (float*)malloc(sizeof(float) * (local_ncols + 2));
   }
@@ -92,18 +92,22 @@ int main(int argc, char* argv[])
   float* tmp_image = malloc(sizeof(double) * width * height);
 
   // Set the input image
-  init_image(nx, ny, width, height, image, tmp_image);
+  init_image(local_nrows, local_ncols, width, height, image, tmp_image);
 
   // printf("local cols : %d",local_ncols);
 
   printf("height: %d\n",height);
   int height_new = 256;
+    printf("here 0\n");
+
 
 
   //Split grid between workers
   for (int i=0;i<=local_ncols;i++){
-    for (int j=0;j<=local_nrows;j++){
-      current[i][j+1]=(float)image[(start_point+i+1)+(start_point+j+1)*height_new];
+    for (int j=0;j<local_nrows;j++){
+      // printf("i is : %d and j is : %d\n",i,j);
+      current[j][i+1]=(float)image[(start_point+i+1)+(j+1)*height];
+      // if (j==1023 & i==2){printf("copied");}
       // printf("%f ", current[i][j]);
 
     }
@@ -111,6 +115,8 @@ int main(int argc, char* argv[])
     // printf("one batch fin for %d\n\n",rank);
 
   }
+  printf("here 1\n");
+  // printf("%f\n",current[1024][2]);
 
   //adding the first rows to send buffer
     for (int ii=0;ii<local_nrows;ii++){
@@ -131,15 +137,23 @@ int main(int argc, char* argv[])
   for (int ii=0;ii<local_nrows;ii++){
     current[ii][0] = recvbuf[ii];
   }
+    printf("here 2\n");
+  // printf("proof: %f\n",current[1024][2]);
 
   //copy old solution to the u grid
   for (int ii=0;ii<local_ncols+2;ii++){
     for (int jj=0;jj<local_nrows;jj++){
       prev[jj][ii] = current[jj][ii];
-      // printf("%f ", current[jj][ii]);
     }
-  // printf("for rank:%d \n",rank);
+      
   }
+  printf("this value is present %f\n",prev[1023][2]);
+
+      // printf("%f\n",current[1024][256]);
+    printf("here 3\n");
+
+
+  //coming up with start and end columns for stencil function
 
   int start_col_stencil;
   int end_col_stencil;
@@ -153,21 +167,88 @@ int main(int argc, char* argv[])
     end_col_stencil = local_ncols-1;
   }
   else{
-    start_col = 1;
-    end_col = local_ncols;
+    start_col_stencil = 1;
+    end_col_stencil = local_ncols;
   }
 
+  printf("here 4 and rank is : %d\n",rank);
 
   
   
-
+  
   // Call the stencil kernel
   double tic = wtime();
-  for (int t = 0; t < niters; ++t) {
-    stencil(start_col_stencil, end_col_stencil, width, height, image, tmp_image);
-    stencil(nx, ny, width, height, tmp_image, image);
+  for (int t = 0; t < 1; ++t) {
+    // printf("enters with rank: %d\n",rank);
+    stencil(nx,ny,start_col_stencil, end_col_stencil, width, height, current, prev,rank);
+    // printf("returned from stencil with rank: %d\n",rank);
+    //after calling stencil function once ,copying current into previous 
+      for (int ii=0;ii<local_ncols+2;ii++){
+    for (int jj=0;jj<local_nrows;jj++){
+      prev[jj][ii] = current[jj][ii];
+    }
+          
+
+    //calling stencil a second time
+    stencil(nx,ny,start_col_stencil, end_col_stencil, width, height, current, prev,rank);
+
+
+
+      }
+      printf("here 5\n");
+
+
+    // stencil(nx, ny, width, height, tmp_image, image);
   }
-  double toc = wtime();
+  // for (int j=0;j<local_ncols;j++){
+  //   for (int i=0;i<local_nrows;i++){
+
+  //   }
+  //collecting results for master 
+  //dealing with first worker
+
+    printf("here 6 with rank %d\n");
+
+  if (rank == MASTER){
+    for (int j=1;j<=local_ncols;j++){
+      for (int i=1;i<=local_nrows;i++){
+        image[(i)*(j)*height] = current[i-1][j+1];
+      }
+    }
+  }
+    // printf("here 7");
+
+  //dealing with last worker
+  else if (rank == (size-1)){
+    for (int j=1;j<local_ncols;j++){
+      for (int i=1;j<=local_nrows;j++){
+        image[i+(start_point+j)*height] = current[i][j];
+      }   //dealing with all other workers
+
+    }
+  }
+
+  else {
+    for (int j=1;j<=local_ncols;j++){
+      for (int i=1;i<=local_nrows;i++){
+        image[(i+(start_point+j)*height)] = current[i][j];
+
+      }
+    }
+  }
+    double toc = wtime();
+      printf("here 9");
+
+
+//  for (int ii=0;ii<ny+1;ii++){
+//     for (int jj=0;jj<nx;jj++){
+//       printf("%f",image[ii+jj*height]);
+//     }
+//     printf("\n");
+//   }
+
+
+  
 
   // Output
   printf("------------------------------------\n");
@@ -179,18 +260,27 @@ int main(int argc, char* argv[])
   free(tmp_image);
 }
 
-void stencil(const int nx, const int ny, const int width, const int height,
-             float* image, float* tmp_image)
+void stencil(const int nx, const int ny,int start_col,int end_col,const int width, const int height,
+             float **current, float **prev,int rank)
 {
-  for (int i = 1; i < nx + 1; ++i) {
-    for (int j = 1; j < ny + 1; ++j) {
-      tmp_image[j + i * height] =  image[j     + i       * height] * 0.6f
-       + (image[j     + (i - 1) * height] 
-      + image[j     + (i + 1) * height] 
-      + image[j - 1 + i       * height] 
-      + image[j + 1 + i       * height]) * 0.1f;
+  // for (int i = 1; i < nx + 1; ++i) {
+  //   for (int j = 1; j < ny + 1; ++j) {
+  //     tmp_image[j + i * height] =  image[j     + i       * height] * 0.6f
+  //      + (image[j     + (i - 1) * height] 
+  //     + image[j     + (i + 1) * height] 
+  //     + image[j - 1 + i       * height] 
+  //     + image[j + 1 + i       * height]) * 0.1f;
+  //   }
+  // }
+  for (int i=1;i<nx-1;i++){
+    for (int j=start_col;j<=end_col;j++){
+      // printf("I = %d and j=%d for rank %d with prev value: %f \n",i,j,rank,prev[i][j]);
+      // printf("%f\n")
+      // if (i==1023 && j==3){printf("HOLD");}
+      current[i][j] = prev[i][j]*0.6f+(prev[i-1][j] + prev[i+1][j] + prev[i][j-1]+ prev[i][j+1])*0.1f;
     }
   }
+
 }
 
 // Create the input image
