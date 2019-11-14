@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
   /* The last rank has the most columns apportioned.
      printbuf must be big enough to hold this number */ 
   remote_ncols = calc_ncols_from_rank(size-1, size); 
-  printbuf = (float*)malloc(sizeof(float) * (remote_ncols + 2));
+  printbuf = (float*)malloc(sizeof(float) * (local_ncols + 2));
   
   //defined start point and end point for cols to break up image
   int start_point= (rank)*local_ncols;
@@ -180,8 +180,29 @@ int main(int argc, char* argv[])
   double tic = wtime();
   for (int t = 0; t < 1; ++t) {
     // printf("enters with rank: %d\n",rank);
-    stencil(nx,ny,start_col_stencil, end_col_stencil, width, height, current, prev,rank);
+    // stencil(nx,ny,start_col_stencil, end_col_stencil, width, height, current, prev,rank);
     // printf("returned from stencil with rank: %d\n",rank);
+
+    //redoing halos
+    //adding the first rows to send buffer
+  //   for (int ii=0;ii<local_nrows;ii++){
+  //     sendbuf[ii] = current[ii][1];
+  //   }
+  //   //sending first row to left and receiving from right
+  //   MPI_Sendrecv(sendbuf,local_nrows,MPI_FLOAT,left,tag,recvbuf,local_nrows,MPI_FLOAT,right,tag,MPI_COMM_WORLD,&status);
+  //   for (int ii=0;ii<local_nrows;ii++){
+  //     current[ii][local_ncols+1] = recvbuf[ii];
+  //   }
+
+  // //addding last row to send buffer
+  // for (int jj=0;jj<local_nrows;jj++){
+  //   sendbuf[jj] = current[jj][local_nrows];
+  // }
+  // //Send to the right and receive from left
+  // MPI_Sendrecv(sendbuf,local_nrows,MPI_FLOAT,right,tag,recvbuf,local_nrows,MPI_FLOAT,left,tag,MPI_COMM_WORLD,&status);
+  // for (int ii=0;ii<local_nrows;ii++){
+  //   current[ii][0] = recvbuf[ii];
+  // }
     //after calling stencil function once ,copying current into previous 
       for (int ii=0;ii<local_ncols+2;ii++){
     for (int jj=0;jj<local_nrows;jj++){
@@ -190,7 +211,7 @@ int main(int argc, char* argv[])
           
 
     //calling stencil a second time
-    stencil(nx,ny,start_col_stencil, end_col_stencil, width, height, current, prev,rank);
+    // stencil(nx,ny,start_col_stencil, end_col_stencil, width, height, current, prev,rank);
 
 
 
@@ -198,43 +219,58 @@ int main(int argc, char* argv[])
       printf("here 5\n");
 
 
-    // stencil(nx, ny, width, height, tmp_image, image);
   }
-  // for (int j=0;j<local_ncols;j++){
-  //   for (int i=0;i<local_nrows;i++){
 
-  //   }
   //collecting results for master 
   //dealing with first worker
 
-    printf("here 6 with rank %d\n");
+    printf("here 6 with rank %d\n",rank);
 
   if (rank == MASTER){
-    for (int j=1;j<=local_ncols;j++){
-      for (int i=1;i<=local_nrows;i++){
-        image[(i)*(j)*height] = current[i-1][j+1];
+    for (int j=0;j<=local_ncols;j++){
+      for (int i=0;i<local_nrows;i++){
+        image[(j+1)+(i+1)*height] = current[i][j+1];
+        // printf("rows is : %d and cols is : %d and value is %f \n",i,j,image[(j)*(i)*height]);
+
       }
     }
-  }
-    // printf("here 7");
+          // printf("%f\n",current[1024][256]); //DEADLOCK
 
-  //dealing with last worker
-  else if (rank == (size-1)){
-    for (int j=1;j<local_ncols;j++){
-      for (int i=1;j<=local_nrows;j++){
-        image[i+(start_point+j)*height] = current[i][j];
-      }   //dealing with all other workers
+  
+    printf("RANK AFTER 6 %d",rank);
+    
 
+    for (int ranks=1;ranks<size;ranks++){
+      for (int jj=0;jj<local_nrows;jj++){
+      MPI_Recv(printbuf,local_ncols+2,MPI_FLOAT,ranks,tag,MPI_COMM_WORLD,&status);
+      current[jj] = printbuf;
+      }
+      printf("Receiving from rank: %d from MASTER\n",ranks);
+      if (ranks == 3){
+        for (int j=0;j<=local_ncols;j++){
+        for (int i=0;i<local_nrows;i++){
+          image[(start_point+j+1)+(i+1)*height] = current[i][j+1];
+        }
+      }
+      }
+      else {
+      for (int j=0;j<=local_ncols;j++){
+        for (int i=0;i<local_nrows;i++){
+          image[(start_point+j+1)+(i+1)*height] = current[i][j+1];
+        }
+      }
+      }
     }
-  }
+    }
 
   else {
-    for (int j=1;j<=local_ncols;j++){
-      for (int i=1;i<=local_nrows;i++){
-        image[(i+(start_point+j)*height)] = current[i][j];
+                // printf("%f\n",current[1024][256]);
+        // image[((start_point+j+1)+(i+1)*height)] = current[i][j];
+        for (int ii=0;ii<local_nrows;ii++){
+        MPI_Send(current[ii],local_ncols+2,MPI_FLOAT,MASTER,tag,MPI_COMM_WORLD);
+        }
+        printf("Sending from rank: %d to MASTER\n",rank);
 
-      }
-    }
   }
     double toc = wtime();
       printf("here 9");
