@@ -53,7 +53,9 @@ int main(int argc, char* argv[])
  right = (rank+1)%size;
 
  local_nrows = NROWS;
- local_ncols = NROWS/size;
+ local_ncols = calc_ncols_from_rank(rank,size);
+//  printf("ncols is %d and rank is : %d \n",local_ncols,rank);
+  // local_ncols = NCOLS/size;
   prev = (float**)malloc(sizeof(float*) * (local_nrows+2));
   for(int ii=0;ii<local_nrows+2;ii++) {
     prev[ii] = (float*)malloc(sizeof(float) * (local_ncols + 2));
@@ -115,11 +117,15 @@ int main(int argc, char* argv[])
     }
   }
   if (rank == size-1){
-        start_point = rank*local_ncols*height+(local_nrows+2);
+        // start_point = rank*local_ncols*height+(local_nrows+2);
+          start_point = rank*(NCOLS/size)*height+(local_nrows+2);
+                // printf("local n cols is %d for rank %d ",local_ncols,rank);
      for (int j=0;j<local_ncols;j++){
     for (int i=0;i<=local_nrows+1;i++){
       if (i<local_nrows+1){
       current[i][j+1]=(float)image[start_point+((i))+(j)*height];
+
+      // printf("is is : %d, j is %d and val is %f\n",i,j,current[i][j+1]);
       }
        if (i==0 || i==local_nrows+1){
         current[i][j] = 0.0f;
@@ -129,6 +135,8 @@ int main(int argc, char* argv[])
 
   }
   else{
+                    printf("local n cols is %d for rank %d ",local_ncols,rank);
+
     start_point = rank*local_ncols*height+(local_nrows+2);
      for (int j=0;j<local_ncols;j++){
     for (int i=0;i<=local_nrows+1;i++){
@@ -332,6 +340,9 @@ int main(int argc, char* argv[])
 
     for (int ranks=1;ranks<size;ranks++){
       int start_rank = ranks*local_ncols*height+(local_nrows+2);
+            if (ranks == size-1){
+          local_ncols=calc_ncols_from_rank(ranks,size);
+      }
       for (int j=0;j<local_ncols;++j){
         MPI_Recv(&image_new[(start_rank+1)+(j)*(height)],local_nrows+2,MPI_FLOAT,ranks,tag,MPI_COMM_WORLD,&status);
 
@@ -365,11 +376,11 @@ int main(int argc, char* argv[])
 
   free(image);
   free(tmp_image);
-  //   MPI_Finalize();
+    MPI_Finalize();
 
 
-  // /* and exit the program */
-  // return EXIT_SUCCESS;
+  /* and exit the program */
+  return EXIT_SUCCESS;
 
 
 
