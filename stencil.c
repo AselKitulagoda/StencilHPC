@@ -94,7 +94,45 @@ current = malloc(sizeof(float)*(local_nrows+2)*(local_ncols+2));
 
     //Split grid between workers
       // int start_point = (local_nrows)*rank*width;
+    //     if (rank == size-1){
+    //     // start_point = rank*local_ncols*height+(local_nrows+2);
+    //       start_point = rank*(NCOLS/size)*height+(local_nrows+2);
+    //             // printf("local n cols is %d for rank %d ",local_ncols,rank);
+    //  for (int j=0;j<local_ncols;j++){
+    // for (int i=0;i<=local_nrows+1;i++){
+    //   if (i<local_nrows+1){
+    //   current[i*height+j+1]=(float)image[start_point+((i)*height)+(j)];
+
+    //   // printf("is is : %d, j is %d and val is %f\n",i,j,current[i][j+1]);
+    //   }
+    //    if (i==0 || i==local_nrows+1){
+    //     current[i*height+j] = 0.0f;
+    //   }
+    // }
+    
+    //     }}
+    //     else {
+   if (rank == size-1){
+        // start_point = rank*local_ncols*height+(local_nrows+2);
+          start_point = rank*(NCOLS/size)*height+(local_nrows+2);
+                // printf("local n cols is %d for rank %d ",local_ncols,rank);
+     for (int j=0;j<local_ncols;j++){
+    for (int i=0;i<=local_nrows+1;i++){
+      if (i<local_nrows+1){
+      current[i+(j+1)*(local_nrows+2)]=(float)image[start_point+(i)+(j)*(local_nrows+2)];
+
+      }
+       if (i==0 || i==local_nrows+1){
+        current[i*height+j] = 0.0f;
+      }
+    }
+    }
+
+  }
+      else {
       memcpy(current,&image[start_point],sizeof(float)*(local_nrows+2)*(local_ncols+2));
+      }
+
 
     // adding the first rows to send buffer
     for (int ii=0;ii<local_nrows+2;ii++){
