@@ -3,13 +3,12 @@
 #include <sys/time.h>
 #include "mpi.h"
 #include "string.h"
-// #include "omp.h"
 
 
 // Define output file name
 #define OUTPUT_FILE "stencil.pgm"
-#define NROWS 1024
-#define NCOLS 1024
+#define NROWS 8000
+#define NCOLS 8000
 #define MASTER 0
 
 void stencil(const int nx, const int ny,const int width, const int height,
@@ -112,26 +111,78 @@ current = malloc(sizeof(float)*(local_nrows+2)*(local_ncols+2));
     
     //     }}
     //     else {
-   if (rank == size-1){
+  //  if (rank == size-1){
+  //       // start_point = rank*local_ncols*height+(local_nrows+2);
+  //         start_point = rank*(NCOLS/size)*height+(local_nrows+2);
+  //               // printf("local n cols is %d for rank %d ",local_ncols,rank);
+  //    for (int j=0;j<local_ncols;j++){
+  //   for (int i=0;i<=local_nrows+1;i++){
+  //     if (i<local_nrows+1){
+  //     current[i+(j+1)*(local_nrows+2)]=(float)image[start_point+(i)+(j)*(local_nrows+2)];
+
+  //     }
+  //      if (i==0 || i==local_nrows+1){
+  //       current[i*height+j] = 0.0f;
+  //     }
+  //   }
+  //   }
+
+  // }
+  //     else {
+      // memcpy(current,&image[start_point],sizeof(float)*(local_nrows+2)*(local_ncols+2));
+      // }
+
+    if (rank == 0){
+  for (int j=0;j<local_ncols;j++){
+    for (int i=0;i<=local_nrows+1;i++){
+      if (i<local_nrows){
+      current[(i+1)+(j+1)*(local_nrows+2)]=(float)image[start_point+((i+1))+(j+1)*height];
+      }
+
+      if (i==0 || i==local_nrows+1){
+        current[i+j*(local_nrows+2)] = 0.0f;
+      }
+
+      // if (rank == 1 && (j+1== 255 || j+1==256)){
+        // printf("val is %f for j+1 of %d for index: %d\n",image[start_point+((i+1))+(j+1)*height],j+1,start_point+((i+1))+(j+1)*height);
+        // printf("starting point is %d",start_point);
+      // }
+    }
+    }
+  }
+  if (rank == size-1){
         // start_point = rank*local_ncols*height+(local_nrows+2);
           start_point = rank*(NCOLS/size)*height+(local_nrows+2);
                 // printf("local n cols is %d for rank %d ",local_ncols,rank);
      for (int j=0;j<local_ncols;j++){
     for (int i=0;i<=local_nrows+1;i++){
       if (i<local_nrows+1){
-      current[i+(j+1)*(local_nrows+2)]=(float)image[start_point+(i)+(j)*(local_nrows+2)];
+      current[i+(j+1)*(local_nrows+2)]=(float)image[start_point+((i))+(j*height)];
 
+      // printf("is is : %d, j is %d and val is %f\n",i,j,current[i][j+1]);
       }
        if (i==0 || i==local_nrows+1){
-        current[i*height+j] = 0.0f;
+        current[i+j*(local_nrows+2)] = 0.0f;
       }
     }
     }
 
   }
-      else {
-      memcpy(current,&image[start_point],sizeof(float)*(local_nrows+2)*(local_ncols+2));
+  else{
+
+    start_point = rank*local_ncols*height+(local_nrows+2);
+     for (int j=0;j<local_ncols;j++){
+    for (int i=0;i<=local_nrows+1;i++){
+      if (i<local_nrows){
+      current[(i+1)+(j+1)*(local_nrows+2)]=(float)image[start_point+((i+1))+(j)*height];
       }
+       if (i==0 || i==local_nrows+1){
+        current[i+j*(local_nrows+2)] = 0.0f;
+      }
+    }
+    }
+
+  }
 
 
     // adding the first rows to send buffer
@@ -188,6 +239,7 @@ current = malloc(sizeof(float)*(local_nrows+2)*(local_ncols+2));
 
   // Call the stencil kernel
   double tic = wtime();
+  
      for (int t = 0; t < niters; ++t) {
 //     // printf("enters with rank: %d\n",rank);
     stencil(local_nrows,local_ncols, width, height, prev,current,rank);
@@ -303,8 +355,9 @@ current = malloc(sizeof(float)*(local_nrows+2)*(local_ncols+2));
     double toc = wtime();
 
 
+
   if (rank == MASTER){
-    printf("here with rank 0\n");
+    // printf("here with rank 0\n");
     for (int j=0;j<local_ncols;j++){
       for (int i=0;i<local_nrows;i++){
         image_new[(i+1)+(j+1)*height] = (double)current[i+1+(j+1)*(local_nrows+2)];
@@ -335,10 +388,10 @@ current = malloc(sizeof(float)*(local_nrows+2)*(local_ncols+2));
   }
 
     else{
-      printf("here with rank : %d\n",rank);
+      // printf("here with rank : %d\n",rank);
       if (rank == 1){
-      printf("local n rows is : %d \n",local_ncols);
-      printf("local n cols is : %d \n",local_nrows);
+      // printf("local n rows is : %d \n",local_ncols);
+      // printf("local n cols is : %d \n",local_nrows);
       }
         for (int j=0;j<local_ncols;j++){
           for (int i=0;i<local_nrows;i++){
@@ -357,16 +410,17 @@ current = malloc(sizeof(float)*(local_nrows+2)*(local_ncols+2));
   }
 
 
-
+if (rank ==0){
   // Output
   printf("------------------------------------\n");
   printf(" runtime: %lf s\n", toc - tic);
   printf("------------------------------------\n");
+}
 
 
   free(image);
   free(tmp_image);
-    MPI_Finalize();
+  MPI_Finalize();
 
 
   /* and exit the program */
