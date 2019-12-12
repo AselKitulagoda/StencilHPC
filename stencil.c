@@ -7,8 +7,8 @@
 
 // Define output file name
 #define OUTPUT_FILE "stencil.pgm"
-#define NROWS 8000
-#define NCOLS 8000
+// #define NROWS 4096
+// #define NCOLS 4096
 #define MASTER 0
 
 void stencil(const int nx, const int ny,const int width, const int height,
@@ -18,7 +18,7 @@ void init_image(const int nx, const int ny, const int width, const int height,
 void output_image(const char* file_name, const int nx, const int ny,
                   const int width, const int height, float* image);
 double wtime(void);
-int calc_ncols_from_rank(int rank, int size);
+int calc_ncols_from_rank(int rank, int size,int NCOLS);
 
 
 int main(int argc, char* argv[])
@@ -53,8 +53,8 @@ int main(int argc, char* argv[])
  left = (rank == MASTER) ? (rank+size-1) : (rank-1);
  right = (rank+1)%size;
 
- local_nrows = NROWS;
- local_ncols = calc_ncols_from_rank(rank,size);
+ local_nrows = atoi(argv[1]);
+ local_ncols = calc_ncols_from_rank(rank,size,atoi(argv[2]));
 //  printf("ncols is %d and rank is : %d \n",local_ncols,rank);
   // local_ncols = NCOLS/size;
 prev  = malloc(sizeof(float)*(local_ncols+2)*(local_nrows+2));
@@ -70,6 +70,7 @@ current = malloc(sizeof(float)*(local_nrows+2)*(local_ncols+2));
   int nx = atoi(argv[1]);
   int ny = atoi(argv[2]);
   int niters = atoi(argv[3]);
+  int cols = ny;
 
   // we pad the outer edge of the image to avoid out of range address issues in
   // stencil
@@ -129,60 +130,78 @@ current = malloc(sizeof(float)*(local_nrows+2)*(local_ncols+2));
 
   // }
   //     else {
-      // memcpy(current,&image[start_point],sizeof(float)*(local_nrows+2)*(local_ncols+2));
       // }
 
-    if (rank == 0){
-  for (int j=0;j<local_ncols;j++){
-    for (int i=0;i<=local_nrows+1;i++){
-      if (i<local_nrows){
-      current[(i+1)+(j+1)*(local_nrows+2)]=(float)image[start_point+((i+1))+(j+1)*height];
-      }
+// if (rank == 0){
+//   for (int j=0;j<local_ncols;j++){
+//     for (int i=0;i<=local_nrows+1;i++){
+//       if (i<local_nrows){
+//       current[(i+1)+(j+1)*(local_nrows+2)]=(float)image[start_point+((i+1))+(j+1)*height];
+//       }
 
-      if (i==0 || i==local_nrows+1){
-        current[i+j*(local_nrows+2)] = 0.0f;
-      }
+//       if (i==0 || i==local_nrows+1){
+//         current[i+j*(local_nrows+2)] = 0.0f;
+//       }
 
-      // if (rank == 1 && (j+1== 255 || j+1==256)){
-        // printf("val is %f for j+1 of %d for index: %d\n",image[start_point+((i+1))+(j+1)*height],j+1,start_point+((i+1))+(j+1)*height);
-        // printf("starting point is %d",start_point);
-      // }
-    }
-    }
+//       // if (rank == 1 && (j+1== 255 || j+1==256)){
+//         // printf("val is %f for j+1 of %d for index: %d\n",image[start_point+((i+1))+(j+1)*height],j+1,start_point+((i+1))+(j+1)*height);
+//         // printf("starting point is %d",start_point);
+//       // }
+//     }
+//     }
+//   }
+//   if (rank == size-1){
+//         // start_point = rank*local_ncols*height+(local_nrows+2);
+//           start_point = rank*(ny/size)*height+(local_nrows+2);
+//                 // printf("local n cols is %d for rank %d ",local_ncols,rank);
+//      for (int j=0;j<local_ncols;j++){
+//     for (int i=0;i<=local_nrows+1;i++){
+//       if (i<local_nrows+1){
+//       current[i+(j+1)*(local_nrows+2)]=(float)image[start_point+((i))+(j*height)];
+
+//       // printf("is is : %d, j is %d and val is %f\n",i,j,current[i][j+1]);
+//       }
+//        if (i==0 || i==local_nrows+1){
+//         current[i+j*(local_nrows+2)] = 0.0f;
+//       }
+//     }
+//     }
+
+//   }
+//   else{
+
+//     start_point = rank*local_ncols*height+(local_nrows+2);
+//      for (int j=0;j<local_ncols;j++){
+//     for (int i=0;i<=local_nrows+1;i++){
+//       if (i<local_nrows){
+//       current[(i+1)+(j+1)*(local_nrows+2)]=(float)image[start_point+((i+1))+(j)*height];
+//       }
+//        if (i==0 || i==local_nrows+1){
+//         current[i+j*(local_nrows+2)] = 0.0f;
+//       }
+//     }
+//     }
+
+//   }
+//send each local ncol back to master 
+//calc displacement (cumulatively add and store in array (multiply by height)
+// multiply local_ncols by height (sendcounts)
+//mpi_scatterv()
+
+  int* displacements = malloc(sizeof(int)*size);
+  for (int i=0;i<size;i++){
+    displacements[i] = i * local_ncols*(local_nrows+2);
+    // printf("this is displacements %d\n",displacements[i]/height);
   }
-  if (rank == size-1){
-        // start_point = rank*local_ncols*height+(local_nrows+2);
-          start_point = rank*(NCOLS/size)*height+(local_nrows+2);
-                // printf("local n cols is %d for rank %d ",local_ncols,rank);
-     for (int j=0;j<local_ncols;j++){
-    for (int i=0;i<=local_nrows+1;i++){
-      if (i<local_nrows+1){
-      current[i+(j+1)*(local_nrows+2)]=(float)image[start_point+((i))+(j*height)];
+  
+  int* sendcounts = malloc(sizeof(int)*size);
+for (int i=0;i<size;i++){
+  sendcounts[i] = calc_ncols_from_rank(i,size,cols)*height;
+  // printf("this is sendcounts %d\n",sendcounts[i]);
 
-      // printf("is is : %d, j is %d and val is %f\n",i,j,current[i][j+1]);
-      }
-       if (i==0 || i==local_nrows+1){
-        current[i+j*(local_nrows+2)] = 0.0f;
-      }
-    }
-    }
+}
+MPI_Scatterv(&image[height],sendcounts,displacements,MPI_FLOAT,&current[height],local_ncols*height,MPI_FLOAT,MASTER,MPI_COMM_WORLD);
 
-  }
-  else{
-
-    start_point = rank*local_ncols*height+(local_nrows+2);
-     for (int j=0;j<local_ncols;j++){
-    for (int i=0;i<=local_nrows+1;i++){
-      if (i<local_nrows){
-      current[(i+1)+(j+1)*(local_nrows+2)]=(float)image[start_point+((i+1))+(j)*height];
-      }
-       if (i==0 || i==local_nrows+1){
-        current[i+j*(local_nrows+2)] = 0.0f;
-      }
-    }
-    }
-
-  }
 
 
     // adding the first rows to send buffer
@@ -238,6 +257,7 @@ current = malloc(sizeof(float)*(local_nrows+2)*(local_ncols+2));
 
 
   // Call the stencil kernel
+  MPI_Barrier(MPI_COMM_WORLD);
   double tic = wtime();
   
      for (int t = 0; t < niters; ++t) {
@@ -352,62 +372,66 @@ current = malloc(sizeof(float)*(local_nrows+2)*(local_ncols+2));
 
 
  }
+    MPI_Barrier(MPI_COMM_WORLD);
     double toc = wtime();
+    
 
 
 
-  if (rank == MASTER){
+
     // printf("here with rank 0\n");
-    for (int j=0;j<local_ncols;j++){
-      for (int i=0;i<local_nrows;i++){
-        image_new[(i+1)+(j+1)*height] = (double)current[i+1+(j+1)*(local_nrows+2)];
+  //   for (int j=0;j<local_ncols;j++){
+  //     for (int i=0;i<local_nrows;i++){
+  //       image_new[(i+1)+(j+1)*height] = (double)current[i+1+(j+1)*(local_nrows+2)];
 
-      }
-    }
+  //     }
+  //   }
 
-    for (int ranks=1;ranks<size;ranks++){
-      int start_rank = ranks*local_ncols*height+(local_nrows+2);
-            if (ranks == size-1){
-          local_ncols=calc_ncols_from_rank(ranks,size);
-      }
-      for (int j=0;j<local_ncols;++j){
-        MPI_Recv(&image_new[(start_rank+1)+(j)*(height)],local_nrows+2,MPI_FLOAT,ranks,tag,MPI_COMM_WORLD,&status);
+  //   for (int ranks=1;ranks<size;ranks++){
+  //     int start_rank = ranks*local_ncols*height+(local_nrows+2);
+  //           if (ranks == size-1){
+  //         local_ncols=calc_ncols_from_rank(ranks,size,ny);
+  //     }
+  //     for (int j=0;j<local_ncols;++j){
+  //       MPI_Recv(&image_new[(start_rank+1)+(j)*(height)],local_nrows+2,MPI_FLOAT,ranks,tag,MPI_COMM_WORLD,&status);
 
-      }
+  //     }
+  // }
+  MPI_Gatherv(&current[height],local_ncols*height,MPI_FLOAT,&image[height],sendcounts,displacements,MPI_FLOAT,MASTER,MPI_COMM_WORLD);
+
+  if (rank ==0){
+
+  output_image("stencil.pgm", nx, ny, width, height, image);
   }
+//    for (int i=0;i<width;i++){
+//         for (int j=0;j<height;j++){
+//                 // printf("i:%d and j=%d and image index is : %d and val is: %f\n",j,i,i*height+j,image[i*height+j]);
+// }
+// }
 
 
-  output_image("stencil.pgm", nx, ny, width, height, image_new);
-   for (int i=0;i<width;i++){
-        for (int j=0;j<height;j++){
-                // printf("i:%d and j=%d and image index is : %d and val is: %f\n",j,i,i*height+j,image[i*height+j]);
-}
-}
 
-
-  }
-
-    else{
-      // printf("here with rank : %d\n",rank);
-      if (rank == 1){
-      // printf("local n rows is : %d \n",local_ncols);
-      // printf("local n cols is : %d \n",local_nrows);
-      }
-        for (int j=0;j<local_ncols;j++){
-          for (int i=0;i<local_nrows;i++){
-            send_image[(j+1)*(local_nrows+2)+(i)] = current[i+1+(j+1)*(local_nrows+2)];
-            //     if (rank==1){
-            //   printf("i is : %d and j is %d and index: %d\n",i,j,(i+1)+ (j+1)*height);
+  //   else{
+  //     // printf("here with rank : %d\n",rank);
+  //     if (rank == 1){
+  //     // printf("local n rows is : %d \n",local_ncols);
+  //     // printf("local n cols is : %d \n",local_nrows);
+  //     }
+  //       for (int j=0;j<local_ncols;j++){
+  //         for (int i=0;i<local_nrows;i++){
+  //           send_image[(j+1)*(local_nrows+2)+(i)] = current[i+1+(j+1)*(local_nrows+2)];
+  //           //     if (rank==1){
+  //           //   printf("i is : %d and j is %d and index: %d\n",i,j,(i+1)+ (j+1)*height);
               
-            // }
-          }
-        }
-              // printf("made it out with rank : %d\n",rank);
+  //           // }
+  //         }
+  //       }
+  //             // printf("made it out with rank : %d\n",rank);
 
-        for (int j=1;j<local_ncols+1;j++){
-        MPI_Send(&send_image[j*(local_nrows+2)],local_nrows+2,MPI_FLOAT,MASTER,tag,MPI_COMM_WORLD);
-        }
-  }
+  //       for (int j=1;j<local_ncols+1;j++){
+  //       MPI_Send(&send_image[j*(local_nrows+2)],local_nrows+2,MPI_FLOAT,MASTER,tag,MPI_COMM_WORLD);
+  //       }
+  // }
 
 
 if (rank ==0){
@@ -526,7 +550,7 @@ double wtime(void)
   return tv.tv_sec + tv.tv_usec * 1e-6;
 }
 
-int calc_ncols_from_rank(int rank, int size)
+int calc_ncols_from_rank(int rank, int size, int NCOLS)
 {
   int ncols;
 
