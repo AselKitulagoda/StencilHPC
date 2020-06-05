@@ -1,4 +1,4 @@
-# 5-point stencil - HPC Assignment 
+# 5-point stencil - HPC Assignment with MPI
 
 This code implements a weighted 5-point stencil on a rectangular grid.  The
 value in each cell of the grid is updated based on an average of the values in
