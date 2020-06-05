@@ -88,106 +88,6 @@ current = malloc(sizeof(float)*(local_nrows+2)*(local_ncols+2));
   // Set the input image
   init_image(nx, ny, width, height, image, tmp_image);
 
-
-
-    // output_image(OUTPUT_FILE, nx, ny, width, height, image);
-
-    //Split grid between workers
-      // int start_point = (local_nrows)*rank*width;
-    //     if (rank == size-1){
-    //     // start_point = rank*local_ncols*height+(local_nrows+2);
-    //       start_point = rank*(NCOLS/size)*height+(local_nrows+2);
-    //             // printf("local n cols is %d for rank %d ",local_ncols,rank);
-    //  for (int j=0;j<local_ncols;j++){
-    // for (int i=0;i<=local_nrows+1;i++){
-    //   if (i<local_nrows+1){
-    //   current[i*height+j+1]=(float)image[start_point+((i)*height)+(j)];
-
-    //   // printf("is is : %d, j is %d and val is %f\n",i,j,current[i][j+1]);
-    //   }
-    //    if (i==0 || i==local_nrows+1){
-    //     current[i*height+j] = 0.0f;
-    //   }
-    // }
-    
-    //     }}
-    //     else {
-  //  if (rank == size-1){
-  //       // start_point = rank*local_ncols*height+(local_nrows+2);
-  //         start_point = rank*(NCOLS/size)*height+(local_nrows+2);
-  //               // printf("local n cols is %d for rank %d ",local_ncols,rank);
-  //    for (int j=0;j<local_ncols;j++){
-  //   for (int i=0;i<=local_nrows+1;i++){
-  //     if (i<local_nrows+1){
-  //     current[i+(j+1)*(local_nrows+2)]=(float)image[start_point+(i)+(j)*(local_nrows+2)];
-
-  //     }
-  //      if (i==0 || i==local_nrows+1){
-  //       current[i*height+j] = 0.0f;
-  //     }
-  //   }
-  //   }
-
-  // }
-  //     else {
-      // }
-
-// if (rank == 0){
-//   for (int j=0;j<local_ncols;j++){
-//     for (int i=0;i<=local_nrows+1;i++){
-//       if (i<local_nrows){
-//       current[(i+1)+(j+1)*(local_nrows+2)]=(float)image[start_point+((i+1))+(j+1)*height];
-//       }
-
-//       if (i==0 || i==local_nrows+1){
-//         current[i+j*(local_nrows+2)] = 0.0f;
-//       }
-
-//       // if (rank == 1 && (j+1== 255 || j+1==256)){
-//         // printf("val is %f for j+1 of %d for index: %d\n",image[start_point+((i+1))+(j+1)*height],j+1,start_point+((i+1))+(j+1)*height);
-//         // printf("starting point is %d",start_point);
-//       // }
-//     }
-//     }
-//   }
-//   if (rank == size-1){
-//         // start_point = rank*local_ncols*height+(local_nrows+2);
-//           start_point = rank*(ny/size)*height+(local_nrows+2);
-//                 // printf("local n cols is %d for rank %d ",local_ncols,rank);
-//      for (int j=0;j<local_ncols;j++){
-//     for (int i=0;i<=local_nrows+1;i++){
-//       if (i<local_nrows+1){
-//       current[i+(j+1)*(local_nrows+2)]=(float)image[start_point+((i))+(j*height)];
-
-//       // printf("is is : %d, j is %d and val is %f\n",i,j,current[i][j+1]);
-//       }
-//        if (i==0 || i==local_nrows+1){
-//         current[i+j*(local_nrows+2)] = 0.0f;
-//       }
-//     }
-//     }
-
-//   }
-//   else{
-
-//     start_point = rank*local_ncols*height+(local_nrows+2);
-//      for (int j=0;j<local_ncols;j++){
-//     for (int i=0;i<=local_nrows+1;i++){
-//       if (i<local_nrows){
-//       current[(i+1)+(j+1)*(local_nrows+2)]=(float)image[start_point+((i+1))+(j)*height];
-//       }
-//        if (i==0 || i==local_nrows+1){
-//         current[i+j*(local_nrows+2)] = 0.0f;
-//       }
-//     }
-//     }
-
-//   }
-//send each local ncol back to master 
-//calc displacement (cumulatively add and store in array (multiply by height)
-// multiply local_ncols by height (sendcounts)
-//mpi_scatterv()
-
   int* displacements = malloc(sizeof(int)*size);
   for (int i=0;i<size;i++){
     displacements[i] = i * local_ncols*(local_nrows+2);
@@ -200,7 +100,7 @@ for (int i=0;i<size;i++){
   // printf("this is sendcounts %d\n",sendcounts[i]);
 
 }
-MPI_Scatterv(&image[height],sendcounts,displacements,MPI_FLOAT,&current[height],local_ncols*height,MPI_FLOAT,MASTER,MPI_COMM_WORLD);
+  MPI_Scatterv(&image[height],sendcounts,displacements,MPI_FLOAT,&current[height],local_ncols*height,MPI_FLOAT,MASTER,MPI_COMM_WORLD);
 
 
 
@@ -260,180 +160,49 @@ MPI_Scatterv(&image[height],sendcounts,displacements,MPI_FLOAT,&current[height],
   MPI_Barrier(MPI_COMM_WORLD);
   double tic = wtime();
   
-     for (int t = 0; t < niters; ++t) {
-//     // printf("enters with rank: %d\n",rank);
+  for (int t = 0; t < niters; ++t) {
     stencil(local_nrows,local_ncols, width, height, prev,current,rank);
-        // adding the first rows to send buffer
-    // for (int ii=0;ii<local_nrows+2;ii++){
-    //   sendbuf[ii] = current[ii+1*(local_nrows+2)];
-    // }(
     memcpy(sendbuf,&prev[1*(local_nrows + 2)],sizeof(float) * (local_nrows + 2));
     //sending first row to left and receiving from right
-    // MPI_Sendrecv(sendbuf,local_nrows,MPI_FLOAT,left,tag,recvbuf,local_nrows,MPI_FLOAT,right,tag,MPI_COMM_WORLD,&status);
     if (left != size-1){
-    MPI_Send(sendbuf,local_nrows+2,MPI_FLOAT,left,tag,MPI_COMM_WORLD);
+      MPI_Send(sendbuf,local_nrows+2,MPI_FLOAT,left,tag,MPI_COMM_WORLD);
     }
     if (rank != size-1){
-    MPI_Recv(&prev[(local_ncols+1)*(local_nrows+2)],local_nrows+2,MPI_FLOAT,right,tag,MPI_COMM_WORLD,&status);
-    // for (int ii=0;ii<local_nrows+2;ii++){
-    //   current[ii+(local_ncols+1)*(local_nrows+2)] = recvbuf[ii];
-    // }
+      MPI_Recv(&prev[(local_ncols+1)*(local_nrows+2)],local_nrows+2,MPI_FLOAT,right,tag,MPI_COMM_WORLD,&status);
     }
-    else {
-  //   for (int ii=0;ii<local_nrows+2;ii++){
-  //   current[ii+(local_ncols+1)*(local_nrows+2)] = 0.0f;
-  // }
+    memcpy(sendbuf,&prev[local_ncols*(local_nrows+2)],sizeof(float) *(local_nrows+2));
+    //Send to the right and receive from left
+    if (right != MASTER){
+      MPI_Send(sendbuf,local_nrows+2,MPI_FLOAT,right,tag,MPI_COMM_WORLD);
     }
-
-  //addding last row to send buffer
-  // for (int jj=0;jj<local_nrows+2;jj++){
-  //   sendbuf[jj] = current[jj+local_ncols*(local_nrows+2)];
-  // }
-  memcpy(sendbuf,&prev[local_ncols*(local_nrows+2)],sizeof(float) *(local_nrows+2));
-  //Send to the right and receive from left
-  if (right != MASTER){
-  MPI_Send(sendbuf,local_nrows+2,MPI_FLOAT,right,tag,MPI_COMM_WORLD);
-  }
-  if (rank != MASTER){
-  MPI_Recv(&prev[0*(local_nrows+2)],local_nrows+2,MPI_FLOAT,left,tag,MPI_COMM_WORLD,&status);
-  // for (int ii=0;ii<local_nrows+2;ii++){
-  //   current[ii+0*(local_nrows+2)] = recvbuf[ii];
-  // }
-  }
-  else {
-  //   for (int ii=0;ii<local_nrows+2;ii++){
-  //   current[ii+0*(local_nrows+2)] = 0.0f;
-  // }
-  }
+    if (rank != MASTER){
+      MPI_Recv(&prev[0*(local_nrows+2)],local_nrows+2,MPI_FLOAT,left,tag,MPI_COMM_WORLD,&status);
+    }
     
-  //copy old solution to the u grid
-  // for (int ii=0;ii<local_ncols+2;ii++){
-  //   for (int jj=0;jj<local_nrows+2;jj++){
-  //     prev[jj+ii*(local_nrows+2)] = current[jj+ii*(local_nrows+2)];
-  //   }
-  // }
-  // memcpy(prev,current,sizeof(float) * (local_nrows+2) * (local_ncols+2));
-
 
     stencil(local_nrows,local_ncols, width, height, current, prev,rank);
-
-    //   for (int ii=0;ii<local_nrows+2;ii++){
-    //   sendbuf[ii] = current[ii+1*(local_nrows+2)];
-    // }
     memcpy(sendbuf,&current[1*(local_nrows + 2)],sizeof(float) * (local_nrows + 2));
-    //sending first row to left and receiving from right
-    // MPI_Sendrecv(sendbuf,local_nrows,MPI_FLOAT,left,tag,recvbuf,local_nrows,MPI_FLOAT,right,tag,MPI_COMM_WORLD,&status);
     if (left != size-1){
-    MPI_Send(sendbuf,local_nrows+2,MPI_FLOAT,left,tag,MPI_COMM_WORLD);
+      MPI_Send(sendbuf,local_nrows+2,MPI_FLOAT,left,tag,MPI_COMM_WORLD);
     }
-  if (rank != size-1){
-    MPI_Recv(&current[(local_ncols+1)*(local_nrows+2)],local_nrows+2,MPI_FLOAT,right,tag,MPI_COMM_WORLD,&status);
-    // for (int ii=0;ii<local_nrows+2;ii++){
-    //   current[ii+(local_ncols+1)*(local_nrows+2)] = recvbuf[ii];
-    // }
+    if (rank != size-1){
+      MPI_Recv(&current[(local_ncols+1)*(local_nrows+2)],local_nrows+2,MPI_FLOAT,right,tag,MPI_COMM_WORLD,&status);
+      }
+    memcpy(sendbuf,&prev[local_ncols*(local_nrows+2)],sizeof(float) *(local_nrows+2));
+    if (right != MASTER){
+      MPI_Send(sendbuf,local_nrows+2,MPI_FLOAT,right,tag,MPI_COMM_WORLD);
     }
-    
-    else {
-  //   for (int ii=0;ii<local_nrows+2;ii++){
-  //   // current[ii+(local_ncols+1)*(local_nrows+2)] = 0.0f;
-  // }
+    if (rank != MASTER){
+      MPI_Recv(&current[0*(local_nrows+2)],local_nrows+2,MPI_FLOAT,left,tag,MPI_COMM_WORLD,&status);
     }
-
-  //addding last row to send buffer
-  // for (int jj=0;jj<local_nrows+2;jj++){
-  //   sendbuf[jj] = current[jj+local_ncols*(local_nrows+2)];
-  // }
-  memcpy(sendbuf,&prev[local_ncols*(local_nrows+2)],sizeof(float) *(local_nrows+2));
-  //Send to the right and receive from left
-  if (right != MASTER){
-  MPI_Send(sendbuf,local_nrows+2,MPI_FLOAT,right,tag,MPI_COMM_WORLD);
   }
-  if (rank != MASTER){
-  MPI_Recv(&current[0*(local_nrows+2)],local_nrows+2,MPI_FLOAT,left,tag,MPI_COMM_WORLD,&status);
-  // for (int ii=0;ii<local_nrows+2;ii++){
-  //   current[ii+0*(local_nrows+2)] = recvbuf[ii];
-  // }
-  }
-  else {
-  //   for (int ii=0;ii<local_nrows+2;ii++){
-  //   current[ii+0*(local_nrows+2)] = 0.0f;
-  // }
-  }
-    
-  //copy old solution to the u grid
-  // for (int ii=0;ii<local_ncols+2;ii++){
-  //   for (int jj=0;jj<local_nrows+2;jj++){
-  //     prev[jj+ii*(local_nrows+2)] = current[jj+ii*(local_nrows+2)];
-  //   }
-  // }
-  // memcpy(prev,current,sizeof(float) * (local_nrows+2) * (local_ncols+2));
+MPI_Barrier(MPI_COMM_WORLD);
+double toc = wtime();
+MPI_Gatherv(&current[height],local_ncols*height,MPI_FLOAT,&image[height],sendcounts,displacements,MPI_FLOAT,MASTER,MPI_COMM_WORLD);
 
-
-
-
- }
-    MPI_Barrier(MPI_COMM_WORLD);
-    double toc = wtime();
-    
-
-
-
-
-    // printf("here with rank 0\n");
-  //   for (int j=0;j<local_ncols;j++){
-  //     for (int i=0;i<local_nrows;i++){
-  //       image_new[(i+1)+(j+1)*height] = (double)current[i+1+(j+1)*(local_nrows+2)];
-
-  //     }
-  //   }
-
-  //   for (int ranks=1;ranks<size;ranks++){
-  //     int start_rank = ranks*local_ncols*height+(local_nrows+2);
-  //           if (ranks == size-1){
-  //         local_ncols=calc_ncols_from_rank(ranks,size,ny);
-  //     }
-  //     for (int j=0;j<local_ncols;++j){
-  //       MPI_Recv(&image_new[(start_rank+1)+(j)*(height)],local_nrows+2,MPI_FLOAT,ranks,tag,MPI_COMM_WORLD,&status);
-
-  //     }
-  // }
-  MPI_Gatherv(&current[height],local_ncols*height,MPI_FLOAT,&image[height],sendcounts,displacements,MPI_FLOAT,MASTER,MPI_COMM_WORLD);
-
-  if (rank ==0){
-
+if (rank ==0){
   output_image("stencil.pgm", nx, ny, width, height, image);
   }
-//    for (int i=0;i<width;i++){
-//         for (int j=0;j<height;j++){
-//                 // printf("i:%d and j=%d and image index is : %d and val is: %f\n",j,i,i*height+j,image[i*height+j]);
-// }
-// }
-
-
-
-  //   else{
-  //     // printf("here with rank : %d\n",rank);
-  //     if (rank == 1){
-  //     // printf("local n rows is : %d \n",local_ncols);
-  //     // printf("local n cols is : %d \n",local_nrows);
-  //     }
-  //       for (int j=0;j<local_ncols;j++){
-  //         for (int i=0;i<local_nrows;i++){
-  //           send_image[(j+1)*(local_nrows+2)+(i)] = current[i+1+(j+1)*(local_nrows+2)];
-  //           //     if (rank==1){
-  //           //   printf("i is : %d and j is %d and index: %d\n",i,j,(i+1)+ (j+1)*height);
-              
-  //           // }
-  //         }
-  //       }
-  //             // printf("made it out with rank : %d\n",rank);
-
-  //       for (int j=1;j<local_ncols+1;j++){
-  //       MPI_Send(&send_image[j*(local_nrows+2)],local_nrows+2,MPI_FLOAT,MASTER,tag,MPI_COMM_WORLD);
-  //       }
-  // }
-
-
 if (rank ==0){
   // Output
   printf("------------------------------------\n");
@@ -442,13 +211,13 @@ if (rank ==0){
 }
 
 
-  free(image);
-  free(tmp_image);
-  MPI_Finalize();
+free(image);
+free(tmp_image);
+MPI_Finalize();
 
 
   /* and exit the program */
-  return EXIT_SUCCESS;
+return EXIT_SUCCESS;
 
 
 
@@ -457,20 +226,8 @@ if (rank ==0){
 void stencil(const int nx, const int ny,const int width, const int height,
              float *current, float *prev,int rank)
 {
-  // for (int i = 1; i < nx + 1; ++i) {
-  //   for (int j = 1; j < ny + 1; ++j) {
-  //     tmp_image[j + i * height] =  image[j     + i       * height] * 0.6f
-  //      + (image[j     + (i - 1) * height]
-  //     + image[j     + (i + 1) * height]
-  //     + image[j - 1 + i       * height]
-  //     + image[j + 1 + i       * height]) * 0.1f;
-  //   }
-  // }
   for (int j=1;j<ny+1;j++){ //ny
     for (int i=1;i<nx+1;i++){ //rows
-      // printf("I = %d and j=%d for rank %d with prev value: %f \n",i,j,rank,prev[i][j]);
-      // printf("%f\n")
-      // if (i==1023 && j==3){printf("HOLD");}
       current[i+j*height] = prev[i+j*height]*0.6f+(prev[(i-1)+j*height] 
       + prev[(i+1)+j*height] + prev[i+(j-1)*height]+ prev[i+(j+1)*height])*0.1f;
     }
