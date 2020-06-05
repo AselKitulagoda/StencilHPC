@@ -1,4 +1,4 @@
-# 5-point stencil
+# 5-point stencil - HPC Assignment 
 
 This code implements a weighted 5-point stencil on a rectangular grid.  The
 value in each cell of the grid is updated based on an average of the values in
@@ -12,7 +12,13 @@ integers in the range [0,255] and output as a binary image file that may be
 viewed graphically.
 
 The only output of each run is the runtime of the iteration loop of the program.
-Initialisation and output are not timed.
+Initialisation and output are not timed.To run this coe you will need access to [BCP4](https://www.bristol.ac.uk/acrc/high-performance-computing/) so having a Username and Password also registered with BCP4 is a pre-requisite.
+
+The aim of this assignment was to use MPI “Single Program Multiple Data (SPMD)” distributed memory
+parallelism to run the stencil code from one core up to all cores of 2 nodes.
+
+To see the full extend of this study look [here](report.pdf) for more. 
+
 
 ## Building and running the code
 
@@ -63,7 +69,7 @@ The reference input files for the different problems are named:
 
 ## MPI Advice
 
-For the MPI assignment you'll want to start running stencil over multiple cores
+You'll want to start running stencil over multiple cores
 and over multiple nodes. To do this on BCp4 you need to change the parameters
 at the top of the `stencil.job` job file as follows:
 
@@ -79,6 +85,4 @@ required number of processes for your job.
 export I_MPI_PMI_LIBRARY=/usr/lib64/libpmi.so
 ```
 
-More info: 
-<https://www.acrc.bris.ac.uk/protected/bc4-docs/scheduler/index.html#running-parallel>
 
