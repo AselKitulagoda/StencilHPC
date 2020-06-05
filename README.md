@@ -17,7 +17,7 @@ Initialisation and output are not timed.To run this coe you will need access to 
 The aim of this assignment was to use MPI “Single Program Multiple Data (SPMD)” distributed memory
 parallelism to run the stencil code from one core up to all cores of 2 nodes.
 
-To see the full extend of this study look [here](report.pdf) for more. 
+To see the full extent of this study look [here](report.pdf) for more. 
 
 
 ## Building and running the code
