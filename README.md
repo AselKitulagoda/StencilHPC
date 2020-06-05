@@ -12,7 +12,9 @@ integers in the range [0,255] and output as a binary image file that may be
 viewed graphically.
 
 The only output of each run is the runtime of the iteration loop of the program.
-Initialisation and output are not timed.To run this coe you will need access to [BCP4](https://www.bristol.ac.uk/acrc/high-performance-computing/) so having a Username and Password also registered with BCP4 is a pre-requisite.
+Initialisation and output are not timed.The objective is to determine strategies to reduce the runtime of the stencil function by parallelizing it's functionality with MPI.
+
+To run this code you will need access to [BCP4](https://www.bristol.ac.uk/acrc/high-performance-computing/) so having a Username and Password also registered with BCP4 is a pre-requisite.
 
 The aim of this assignment was to use MPI “Single Program Multiple Data (SPMD)” distributed memory
 parallelism to run the stencil code from one core up to all cores of 2 nodes.
